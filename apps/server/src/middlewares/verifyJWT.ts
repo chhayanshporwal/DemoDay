@@ -88,3 +88,45 @@ export function requireRole(...roles: RoleType[]) {
     next();
   };
 }
+
+// ---------------------------------------------------------------------------
+// optionalJWT middleware — allows access without token, but parses it if present
+// ---------------------------------------------------------------------------
+export async function optionalJWT(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader?.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (!error && user) {
+      req.user = {
+        id: user.id,
+        email: user.email ?? '',
+        role_type: (user.user_metadata?.role_type as RoleType) ?? 'creator',
+      };
+    }
+
+    next();
+  } catch (err) {
+    // Silently ignore auth errors for optionalJWT and proceed as guest
+    next();
+  }
+}
+

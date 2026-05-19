@@ -1,120 +1,159 @@
 // ==========================================
-// StudioPage — Upload zone placeholder
-// Drag-and-drop area + metadata form
+// StudioPage — Dynamic project demo publisher
+// Metadata form + switches to hide likes and comments count
 // ==========================================
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
-import LinearProgress from '@mui/material/LinearProgress';
-import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import VideoFileRoundedIcon from '@mui/icons-material/VideoFileRounded';
 import PhotoLibraryRoundedIcon from '@mui/icons-material/PhotoLibraryRounded';
 import TechBadge from '../components/shared/TechBadge';
+import { useStore } from '../store/useStore';
+import api from '../lib/axios';
+import { useNavigate } from 'react-router-dom';
 
 const TECH_OPTIONS = [
   'React', 'React Native', 'Next.js', 'Vue.js', 'Node.js', 'Express',
   'TypeScript', 'Python', 'Django', 'FastAPI', 'PostgreSQL', 'MongoDB',
-  'Docker', 'AWS', 'FFmpeg', 'Flutter', 'Go', 'Rust',
+  'Docker', 'AWS', 'FFmpeg', 'Flutter', 'Go', 'Rust', 'TensorFlow', 'WebRTC',
 ];
 
 const StudioPage: React.FC = () => {
-  const [dragActive, setDragActive] = useState(false);
-  const [mediaType, setMediaType] = useState<'reel' | 'carousel' | null>(null);
-  const [techStack, setTechStack] = useState<string[]>([]);
+  const navigate = useNavigate();
+  const { pushToast, user } = useStore();
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
+  const [mediaType, setMediaType] = useState<'reel' | 'carousel'>('reel');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [techStack, setTechStack] = useState<string[]>([]);
+  const [customMediaUrl, setCustomMediaUrl] = useState('');
+  const [hideLikesCount, setHideLikesCount] = useState(false);
+  const [hideCommentsCount, setHideCommentsCount] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    setDragActive(e.type === 'dragenter' || e.type === 'dragover');
-  }, []);
+    if (!user) {
+      pushToast({ message: 'You must be logged in to publish a demo', severity: 'error' });
+      return;
+    }
+
+    if (!title.trim()) {
+      pushToast({ message: 'Please enter a project title', severity: 'warning' });
+      return;
+    }
+
+    // Default sample/mock video or image if none provided
+    const mediaUrl = customMediaUrl.trim() || (
+      mediaType === 'reel'
+        ? 'https://assets.mixkit.co/videos/preview/mixkit-coding-on-laptop-with-colored-lights-around-42867-large.mp4'
+        : 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80'
+    );
+
+    try {
+      setIsPublishing(true);
+      await api.post('/studio/posts', {
+        title,
+        description: description || undefined,
+        media_type: mediaType,
+        media_urls: [mediaUrl],
+        tech_stack: techStack,
+        hide_likes_count: hideLikesCount,
+        hide_comments_count: hideCommentsCount,
+      });
+
+      pushToast({ message: 'Demo published successfully!', severity: 'success' });
+      navigate('/');
+    } catch (err: any) {
+      pushToast({
+        message: err.response?.data?.message || 'Failed to publish post',
+        severity: 'error',
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   return (
-    <Box sx={{ maxWidth: 700, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, pb: 8 }}>
       <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>Studio</Typography>
       <Typography color="text.secondary" sx={{ mb: 4 }}>
-        Upload a 60-second project demo or architecture diagram carousel
+        Publish your project demo, coding walk-through, or product design.
       </Typography>
 
-      {/* Media type selector */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 3 }}>
-        {[
-          { type: 'reel' as const, icon: <VideoFileRoundedIcon sx={{ fontSize: 32 }} />, label: 'Video Reel', desc: 'MP4 up to 60 seconds' },
-          { type: 'carousel' as const, icon: <PhotoLibraryRoundedIcon sx={{ fontSize: 32 }} />, label: 'Image Carousel', desc: 'Up to 10 slides' },
-        ].map((opt) => (
-          <Card
-            key={opt.type}
-            onClick={() => setMediaType(opt.type)}
-            sx={{
-              p: 3, textAlign: 'center', cursor: 'pointer',
-              border: '2px solid',
-              borderColor: mediaType === opt.type ? 'primary.main' : 'divider',
-              bgcolor: mediaType === opt.type ? 'rgba(79, 70, 229, 0.04)' : 'background.paper',
-              '&:hover': { borderColor: 'primary.light' },
-            }}
-          >
-            <Box sx={{ color: mediaType === opt.type ? 'primary.main' : 'text.secondary', mb: 1 }}>
-              {opt.icon}
-            </Box>
-            <Typography variant="body1" sx={{ fontWeight: 600 }}>{opt.label}</Typography>
-            <Typography variant="caption" color="text.secondary">{opt.desc}</Typography>
-          </Card>
-        ))}
-      </Box>
-
-      {/* Drop zone */}
-      <Card
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={(e) => { e.preventDefault(); setDragActive(false); }}
-        sx={{
-          p: 6, mb: 3, textAlign: 'center', cursor: 'pointer',
-          border: '2px dashed',
-          borderColor: dragActive ? 'primary.main' : 'divider',
-          bgcolor: dragActive ? 'rgba(79, 70, 229, 0.04)' : 'transparent',
-          transition: 'all 0.25s ease',
-          '&:hover': { borderColor: 'primary.light', bgcolor: 'rgba(79, 70, 229, 0.02)' },
-        }}
-      >
-        <CloudUploadRoundedIcon
-          sx={{ fontSize: 56, color: dragActive ? 'primary.main' : 'text.secondary', mb: 2 }}
-        />
-        <Typography variant="h6" sx={{ mb: 0.5 }}>
-          {dragActive ? 'Drop your file here' : 'Drag & drop your file here'}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          or click to browse • {mediaType === 'carousel' ? 'PNG, JPG up to 10MB each' : 'MP4 up to 50MB'}
-        </Typography>
-        <Button variant="outlined" size="small">Browse Files</Button>
-      </Card>
-
-      {/* Upload progress placeholder */}
-      <Box sx={{ mb: 3, display: 'none' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-          <Typography variant="caption">Uploading...</Typography>
-          <Typography variant="caption">45%</Typography>
+      <Box component="form" onSubmit={handlePublish} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {/* Media type selector */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+          {[
+            { type: 'reel' as const, icon: <VideoFileRoundedIcon sx={{ fontSize: 24 }} />, label: 'Video Reel', desc: 'Demo reel / video walk-through' },
+            { type: 'carousel' as const, icon: <PhotoLibraryRoundedIcon sx={{ fontSize: 24 }} />, label: 'Image Deck', desc: 'Architecture slides / screenshot deck' },
+          ].map((opt) => (
+            <Card
+              key={opt.type}
+              onClick={() => setMediaType(opt.type)}
+              sx={{
+                p: 2, textAlign: 'center', cursor: 'pointer',
+                border: '2px solid',
+                borderColor: mediaType === opt.type ? 'primary.main' : 'divider',
+                bgcolor: mediaType === opt.type ? 'rgba(79, 70, 229, 0.04)' : 'background.paper',
+                transition: 'all 0.2s ease',
+                '&:hover': { borderColor: 'primary.light' },
+              }}
+            >
+              <Box sx={{ color: mediaType === opt.type ? 'primary.main' : 'text.secondary', mb: 0.5 }}>
+                {opt.icon}
+              </Box>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{opt.label}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>{opt.desc}</Typography>
+            </Card>
+          ))}
         </Box>
-        <LinearProgress
-          variant="determinate"
-          value={45}
+
+        {/* Optional Media URL Paste for testing / direct embedding */}
+        <TextField
+          fullWidth
+          label="Demo Media URL (Optional)"
+          placeholder={mediaType === 'reel' ? 'Paste direct video URL (.mp4) or leave blank for a tech sample video' : 'Paste direct image URL (.png, .jpg) or leave blank'}
+          value={customMediaUrl}
+          onChange={(e) => setCustomMediaUrl(e.target.value)}
           sx={{
-            height: 6, borderRadius: 3,
-            '& .MuiLinearProgress-bar': {
-              background: 'linear-gradient(90deg, #4F46E5, #0D9488)',
-            },
+            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
           }}
         />
-      </Box>
 
-      {/* Metadata form */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-        <TextField fullWidth label="Project Title" placeholder="e.g., CallSentry — AI Spam Detection" required />
-        <TextField fullWidth label="Description" placeholder="Walk through your architecture and key decisions..." multiline rows={3} />
+        {/* Metadata form */}
+        <TextField
+          fullWidth
+          label="Project Title"
+          placeholder="e.g., CallSentry — AI Spam Detection App"
+          required
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          sx={{
+            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+          }}
+        />
+
+        <TextField
+          fullWidth
+          label="Description"
+          placeholder="What problem did you solve? Walk through your architecture and key engineering challenges..."
+          multiline
+          rows={4}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          sx={{
+            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+          }}
+        />
+
         <Autocomplete
           multiple
           options={TECH_OPTIONS}
@@ -127,10 +166,77 @@ const StudioPage: React.FC = () => {
               return <TechBadge key={key} label={option} active {...rest} />;
             })
           }
+          sx={{
+            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+          }}
         />
-        <TextField fullWidth label="Collaborators" placeholder="@username1, @username2" />
-        <Button variant="contained" size="large" fullWidth disabled sx={{ mt: 1 }}>
-          Publish Demo
+
+        {/* Post Display Toggles */}
+        <Card
+          sx={{
+            p: 2,
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            bgcolor: 'rgba(255, 255, 255, 0.01)',
+            borderRadius: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1.5,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', mb: 0.5 }}>
+            Advanced Settings (Visibility & Engagement)
+          </Typography>
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={hideLikesCount}
+                onChange={(e) => setHideLikesCount(e.target.checked)}
+                color="secondary"
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>Hide Likes Count</Typography>
+                <Typography variant="caption" color="text.secondary">Only you will see the total number of likes on this post</Typography>
+              </Box>
+            }
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={hideCommentsCount}
+                onChange={(e) => setHideCommentsCount(e.target.checked)}
+                color="secondary"
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>Turn Off Commenting</Typography>
+                <Typography variant="caption" color="text.secondary">Prevent other users from leaving comments on this post</Typography>
+              </Box>
+            }
+          />
+        </Card>
+
+        <Button
+          type="submit"
+          variant="contained"
+          color="secondary"
+          size="large"
+          fullWidth
+          disabled={isPublishing}
+          sx={{
+            mt: 2,
+            py: 1.5,
+            borderRadius: '12px',
+            textTransform: 'none',
+            fontSize: '1rem',
+            fontWeight: 600,
+          }}
+        >
+          {isPublishing ? 'Publishing Demo...' : 'Publish Demo'}
         </Button>
       </Box>
     </Box>

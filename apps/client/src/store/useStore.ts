@@ -67,6 +67,8 @@ interface FeedSlice {
   toggleSave: (postId: string) => void;
   setFeedLoading: (loading: boolean) => void;
   resetFeed: () => void;
+  updatePostInFeed: (postId: string, updates: Partial<FeedPost>) => void;
+  deletePostInFeed: (postId: string) => void;
 }
 
 // ---- Combined Store Type ----
@@ -216,6 +218,17 @@ export const useStore = create<StoreState>()(
         state.posts = [];
         state.nextCursor = null;
         state.hasMore = true;
+      }),
+    updatePostInFeed: (postId, updates) =>
+      set((state) => {
+        const post = state.posts.find((p) => p.id === postId);
+        if (post) {
+          Object.assign(post, updates);
+        }
+      }),
+    deletePostInFeed: (postId) =>
+      set((state) => {
+        state.posts = state.posts.filter((p) => p.id !== postId);
       }),
   }))
 );
