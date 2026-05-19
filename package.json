@@ -1,0 +1,21 @@
+{
+  "name": "demoday",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DemoDay — Visual-first professional networking platform for tech talent",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n client,server -c blue,green \"npm run dev -w apps/client\" \"npm run dev -w apps/server\"",
+    "dev:client": "npm run dev -w apps/client",
+    "dev:server": "npm run dev -w apps/server",
+    "build": "npm run build -w packages/shared && npm run build -w apps/client && npm run build -w apps/server",
+    "build:client": "npm run build -w apps/client",
+    "build:server": "npm run build -w apps/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
